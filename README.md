@@ -134,28 +134,79 @@ it on login/logout) and sends it as `X-CSRFToken`.
 
 ---
 
-## 🌐 Deploying
+## 🌐 Put it online (so anyone can use it)
 
-The app runs on any standard Django host. For production:
+The app is **production-ready** out of the box: WhiteNoise serves the static
+assets from the app process (no separate CDN needed), gunicorn is the web
+server, and it runs over a single port. Pick whichever host you like.
+
+### Option A — Render (free, one click) ⭐ recommended
+
+A [`render.yaml`](render.yaml) blueprint is included, so Render provisions the
+web service **and** a free Postgres database automatically.
+
+1. Push this repo to GitHub (already done if you're reading this there).
+2. Go to **[render.com](https://render.com)** → **New + → Blueprint**.
+3. Connect this repository and click **Apply**.
+4. Wait ~2 minutes — Render runs `build.sh`, generates a secret key, wires up
+   the database, and gives you a public URL like
+   `https://ai-trainer.onrender.com`.
+
+Anyone with that URL can now use the app. No further config required.
+
+### Option B — Railway / Heroku-style (Procfile)
+
+A [`Procfile`](Procfile) is included (`release:` runs migrations, `web:` runs
+gunicorn). On [Railway](https://railway.app): **New Project → Deploy from
+repo**, add a Postgres plugin (sets `DATABASE_URL` automatically), and set
+`DJANGO_DEBUG=0` + `DJANGO_SECRET_KEY`. Deploy.
+
+### Option C — Any Docker host (Fly.io, Cloud Run, Koyeb…)
+
+A [`Dockerfile`](Dockerfile) is included.
+
+```bash
+docker build -t ai-trainer .
+docker run -p 8000:8000 -e DJANGO_SECRET_KEY="$(python -c 'import secrets;print(secrets.token_urlsafe(50))')" ai-trainer
+# open http://localhost:8000
+```
+
+For Fly.io: `fly launch` (it detects the Dockerfile), then `fly deploy`.
+
+### Manual / VPS
 
 ```bash
 export DJANGO_DEBUG=0
 export DJANGO_SECRET_KEY="<a long random string>"
 export DJANGO_ALLOWED_HOSTS="yourdomain.com"
 export DJANGO_CSRF_TRUSTED_ORIGINS="https://yourdomain.com"
-python manage.py migrate
-python manage.py collectstatic --noinput
-gunicorn ai_training.wsgi   # or your WSGI/ASGI server of choice
+./build.sh                                  # installs, collectstatic, migrate
+gunicorn ai_training.wsgi --bind 0.0.0.0:8000
 ```
 
-Serve `STATIC_ROOT` via your web server (or add WhiteNoise if you prefer a
-single process).
+### Environment variables
+
+| Variable                       | Default | Notes                                            |
+|--------------------------------|---------|--------------------------------------------------|
+| `DJANGO_SECRET_KEY`            | dev key | **Set this** to a long random string in prod.    |
+| `DJANGO_DEBUG`                 | `1`     | Set to `0` in production.                         |
+| `DJANGO_ALLOWED_HOSTS`         | `*`     | Comma-separated hostnames.                        |
+| `DJANGO_CSRF_TRUSTED_ORIGINS`  | empty   | e.g. `https://yourdomain.com` (auto on Render).  |
+| `DATABASE_URL`                 | sqlite  | Postgres URL → accounts persist across redeploys.|
+| `DJANGO_SECURE_SSL_REDIRECT`   | `1`     | Set `0` if TLS is terminated elsewhere.          |
+
+> The core app (lessons, XP, streaks) works with **no database at all** — it's
+> all in the browser's localStorage. The database is only used for *optional*
+> accounts that sync progress across devices, so even free SQLite-only hosting
+> is fine for a public demo.
 
 ---
 
 ## 🧪 Tech & dependencies
 
-- **Backend:** Django 5 (the *only* Python dependency), SQLite.
+- **Backend:** Django 5 + SQLite for local dev. Production adds gunicorn (web
+  server) and WhiteNoise (static files); `dj-database-url` + `psycopg` enable
+  optional Postgres. That's the entire dependency list.
 - **Frontend:** hand-written HTML/CSS/JS — **zero** JS frameworks or CSS
   libraries, so it loads fast even on slow connections. System font stack,
   inline SVG favicon, emoji iconography.

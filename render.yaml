@@ -1,0 +1,28 @@
+# One-click deploy blueprint for Render (https://render.com).
+# In Render: New + → Blueprint → connect this repo. Everything below is
+# provisioned automatically on the FREE tier.
+services:
+  - type: web
+    name: ai-trainer
+    runtime: python
+    plan: free
+    buildCommand: "./build.sh"
+    startCommand: "gunicorn ai_training.wsgi --bind 0.0.0.0:$PORT --workers 2 --log-file -"
+    healthCheckPath: /
+    envVars:
+      - key: DJANGO_DEBUG
+        value: "0"
+      - key: DJANGO_SECRET_KEY
+        generateValue: true          # Render generates a strong secret
+      - key: DJANGO_ALLOWED_HOSTS
+        value: "*"                    # RENDER_EXTERNAL_HOSTNAME is trusted in settings
+      - key: PYTHON_VERSION
+        value: "3.12.6"
+      - key: DATABASE_URL             # free managed Postgres, so accounts persist
+        fromDatabase:
+          name: ai-trainer-db
+          property: connectionString
+
+databases:
+  - name: ai-trainer-db
+    plan: free
