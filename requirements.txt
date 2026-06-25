@@ -1,0 +1,11 @@
+# Core framework
+Django>=5.0,<6.0
+
+# Production server + static file serving (works on any host)
+gunicorn>=21,<27
+whitenoise>=6,<7
+
+# Optional managed Postgres via DATABASE_URL (free tier on Render/Railway).
+# Comment these two out if you only ever use SQLite.
+dj-database-url>=2,<4
+psycopg[binary]>=3.1,<4
